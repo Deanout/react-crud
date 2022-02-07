@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import produce from "immer";
 import { RootState } from "../../app/store"
-import { fetchPosts, createPost } from './postAPI'
+import { fetchPosts, createPost, destroyPost, updatePost } from './postAPI'
 
 export enum Statuses {
     Initial = "Not Fetched",
@@ -32,6 +32,17 @@ export interface PostsState {
     status: string;
 }
 
+export interface PostUpdateData {
+    post_id: number;
+    post: PostState;
+}
+
+export interface PostDeleteData {
+    post: {
+        post_id: number;
+    }
+}
+
 const initialState: PostsState = {
     posts: [
         {
@@ -57,6 +68,22 @@ export const createPostAsync = createAsyncThunk(
     'posts/createPost',
     async (payload: PostFormData) => {
         const response = await createPost(payload);
+
+        return response;
+    }
+)
+export const updatePostAsync = createAsyncThunk(
+    'posts/updatePost',
+    async (payload: PostFormData) => {
+        const response = await updatePost(payload);
+
+        return response;
+    }
+)
+export const destroyPostAsync = createAsyncThunk(
+    'posts/destroyPost',
+    async (payload: PostDeleteData) => {
+        const response = await destroyPost(payload);
 
         return response;
     }
@@ -100,6 +127,43 @@ export const postSlice = createSlice({
                 })
             })            
             .addCase(createPostAsync.rejected, (state) => {
+                return produce(state, (draftState) => {
+                    draftState.status = Statuses.Error;
+                })
+            })
+            /** Destroy Section */
+            .addCase(destroyPostAsync.pending, (state) => {
+                return produce(state, (draftState) => {
+                    draftState.status = Statuses.Loading;
+                })
+            })
+            .addCase(destroyPostAsync.fulfilled, (state, action) => {
+                return produce(state, (draftState) => {
+                    draftState.posts = action.payload;
+                    draftState.status = Statuses.UpToDate;
+                })
+            })            
+            .addCase(destroyPostAsync.rejected, (state) => {
+                return produce(state, (draftState) => {
+                    draftState.status = Statuses.Error;
+                })
+            })
+            /** Update Section */
+            .addCase(updatePostAsync.pending, (state) => {
+                return produce(state, (draftState) => {
+                    draftState.status = Statuses.Loading;
+                })
+            })
+            .addCase(updatePostAsync.fulfilled, (state, action) => {
+                return produce(state, (draftState) => {
+                    const index = draftState.posts.findIndex(
+                        post => post.id === action.payload.id
+                    );
+                    draftState.posts[index] = action.payload;
+                    draftState.status = Statuses.UpToDate;
+                })
+            })            
+            .addCase(updatePostAsync.rejected, (state) => {
                 return produce(state, (draftState) => {
                     draftState.status = Statuses.Error;
                 })
